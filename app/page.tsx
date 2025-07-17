@@ -1,102 +1,188 @@
-import Image from "next/image";
+"use client";
+import { useEffect, useRef, useState } from "react";
+import { io, Socket } from "socket.io-client";
+
+// const SOCKET_SERVER_URL = "http://localhost:3001";
+const SOCKET_SERVER_URL = process.env.NEXT_PUBLIC_SOCKET_SERVER_URL || "";
+
+interface Message {
+  author: string;
+  message: string;
+  time: string;
+  room: string;
+}
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [room, setRoom] = useState("");
+  const [joined, setJoined] = useState(false);
+  const [username, setUsername] = useState("");
+  const [message, setMessage] = useState("");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+  useEffect(() => {
+    console.log(SOCKET_SERVER_URL);
+    const newSocket = io(SOCKET_SERVER_URL);
+    if (!socket) {
+      setSocket(newSocket);
+    }
+  }, [socket]);
+
+  useEffect(() => {
+    if (!socket) return;
+    const handleReceiveMessage = (data: Message) => {
+      setMessages((prev) => [...prev, data]);
+    };
+    socket.on("receive_message", handleReceiveMessage);
+    return () => {
+      socket.off("receive_message", handleReceiveMessage);
+    };
+  }, [socket]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const handleJoinRoom = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (room && username && socket) {
+      socket.emit("join_room", room);
+      setJoined(true);
+    }
+  };
+
+  const handleSendMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (message && socket && room) {
+      const msg: Message = {
+        author: username,
+        message,
+        time: new Date().toLocaleTimeString(),
+        room,
+      };
+      socket.emit("send_message", msg);
+      setMessages((prev) => [...prev, msg]);
+      setMessage("");
+    }
+  };
+
+  if (!socket)
+    return (
+      <div className="fixed translate-x-[-50%] translate-y-[-50%] left-[50%] top-[50%]">
+        Loading...
+      </div>
+    );
+  console.log(socket);
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">
+      <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+        <h1 className="text-2xl font-bold mb-4 text-center">Group Chat Room</h1>
+        {!joined ? (
+          <form onSubmit={handleJoinRoom} className="flex flex-col gap-3 mb-4">
+            <input
+              type="text"
+              placeholder="Your Name"
+              className="input input-bordered w-full p-2 rounded border"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+            <input
+              type="text"
+              placeholder="Room Code (e.g. 12345)"
+              className="input input-bordered w-full p-2 rounded border"
+              value={room}
+              onChange={(e) => setRoom(e.target.value)}
+              required
+            />
+            <button
+              type="submit"
+              className="bg-blue-600 text-white rounded p-2 font-semibold hover:bg-blue-700 transition"
+            >
+              Join Room
+            </button>
+          </form>
+        ) : (
+          <>
+            <div className="mb-4">
+              <div className="text-sm text-gray-600 dark:text-gray-300 mb-1">
+                Room: <span className="font-mono font-bold">{room}</span>
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-300 mb-1">
+                Username:{" "}
+                <span className="font-mono font-bold">{username}</span>
+              </div>
+              <button
+                className="text-xs text-red-500 hover:underline"
+                onClick={() => {
+                  if (socket && room) {
+                    socket.emit("leave_room", room);
+                  }
+                  setJoined(false);
+                  setMessages([]);
+                  setRoom("");
+                }}
+              >
+                Leave Room
+              </button>
+            </div>
+            <div className="h-64 overflow-y-auto bg-gray-50 dark:bg-gray-700 rounded p-2 mb-4 border border-gray-200 dark:border-gray-600">
+              {messages.length === 0 ? (
+                <div className="text-center text-gray-400 mt-24">
+                  No messages yet.
+                </div>
+              ) : (
+                messages.map((msg, idx) => (
+                  <div
+                    key={idx}
+                    className={`mb-2 flex flex-col ${
+                      msg.author === username ? "items-end" : "items-start"
+                    }`}
+                  >
+                    <div
+                      className={`px-3 py-1 rounded-lg max-w-[80%] ${
+                        msg.author === username
+                          ? "bg-blue-500 text-white"
+                          : "bg-gray-200 dark:bg-gray-600 text-gray-900 dark:text-gray-100"
+                      }`}
+                    >
+                      <span className="block text-xs font-semibold">
+                        {msg.author}
+                      </span>
+                      <span>{msg.message}</span>
+                      <span className="block text-[10px] text-right text-gray-300 dark:text-gray-400">
+                        {msg.time}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+            <form onSubmit={handleSendMessage} className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Type your message..."
+                className="input input-bordered flex-1 p-2 rounded border"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                disabled={!joined}
+                required
+              />
+              <button
+                type="submit"
+                className="bg-blue-600 text-white rounded px-4 font-semibold hover:bg-blue-700 transition"
+                disabled={!joined || !message}
+              >
+                Send
+              </button>
+            </form>
+          </>
+        )}
+      </div>
+      <footer className="mt-8 text-gray-400 text-xs text-center">
+        Made with Next.js, Tailwind, Socket.io & Express
       </footer>
     </div>
   );
