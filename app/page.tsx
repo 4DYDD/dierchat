@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { io, Socket } from "socket.io-client";
 
-// const SOCKET_SERVER_URL = "http://localhost:3001";
+import io from "socket.io-client";
+
 const SOCKET_SERVER_URL = process.env.NEXT_PUBLIC_SOCKET_SERVER_URL || "";
 
 interface Message {
@@ -13,7 +13,7 @@ interface Message {
 }
 
 export default function Home() {
-  const [socket, setSocket] = useState<Socket | null>(null);
+  const [socket, setSocket] = useState<ReturnType<typeof io> | null>(null);
   const [room, setRoom] = useState("");
   const [joined, setJoined] = useState(false);
   const [username, setUsername] = useState("");
@@ -22,12 +22,12 @@ export default function Home() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    console.log(SOCKET_SERVER_URL);
     const newSocket = io(SOCKET_SERVER_URL);
-    if (!socket) {
-      setSocket(newSocket);
-    }
-  }, [socket]);
+    setSocket(newSocket);
+    return () => {
+      newSocket.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     if (!socket) return;
@@ -73,7 +73,6 @@ export default function Home() {
         Loading...
       </div>
     );
-  console.log(socket);
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">
       <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
