@@ -20,7 +20,11 @@ export default function Home() {
   const [username, setUsername] = useState("");
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
+  const [isTyping, setIsTyping] = useState<boolean>(false);
+  const [typingAuthor, setTypingAuthor] = useState<Array<string>>([]);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const newSocket = io(SOCKET_SERVER_URL, {
@@ -48,6 +52,29 @@ export default function Home() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  useEffect(() => {
+    if (!socket) return;
+    let theTimeOut: any = null;
+
+    socket.on("hear_typing", ({ author, isTyped }: any) => {
+      clearTimeout(theTimeOut);
+      setIsTyping(isTyped);
+
+      setTypingAuthor((state) => {
+        const isDuplicatedAuthor = state.find((value) => value === author);
+
+        if (isDuplicatedAuthor) return state;
+
+        return [...state, author];
+      });
+
+      theTimeOut = setTimeout(() => {
+        setIsTyping(false);
+        setTypingAuthor([]);
+      }, 5000);
+    });
+  }, [socket, isTyping, typingAuthor]);
+
   if (process.env.NEXT_PUBLIC_STATUS === "development") return <Developing />;
 
   const handleJoinRoom = (e: React.FormEvent) => {
@@ -71,6 +98,22 @@ export default function Home() {
       setMessages((prev) => [...prev, msg]);
       setMessage("");
     }
+  };
+
+  // let theTimeOut = null;
+
+  const handleChange = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // inputValue = VAR REF
+    const inputValue = messageInputRef?.current?.value;
+
+    console.log({ author: username, room });
+
+    // === fungsi untuk trigger typing
+    setMessage(inputValue || "");
+
+    if (socket) socket.emit("typing", { author: username, room });
   };
 
   if (!socket)
@@ -133,7 +176,17 @@ export default function Home() {
                 Leave Room
               </button>
             </div>
-            <div className="h-64 overflow-y-auto bg-gray-50 dark:bg-gray-700 rounded p-2 mb-4 border border-gray-200 dark:border-gray-600">
+
+            {isTyping && (
+              <div className="text-sm text-right text-slate-400 mb-3 mt-6 px-3 h-10 flex justify-end items-center animate-pulse">
+                {`${typingAuthor.join(", ")} Sedang Mengetik . . .`}
+              </div>
+            )}
+            {!isTyping && (
+              <div className="text-sm text-right text-slate-400 mb-3 mt-6 px-3 h-10 flex justify-end items-center" />
+            )}
+
+            <div className="h-[420px] overflow-y-auto bg-gray-50 dark:bg-gray-700 rounded p-3.5 mb-4 border border-gray-200 dark:border-gray-600">
               {messages.length === 0 ? (
                 <div className="text-center text-gray-400 mt-24">
                   No messages yet.
@@ -142,22 +195,22 @@ export default function Home() {
                 messages.map((msg, idx) => (
                   <div
                     key={idx}
-                    className={`mb-2 flex flex-col ${
+                    className={`mb-4 flex flex-col ${
                       msg.author === username ? "items-end" : "items-start"
                     }`}
                   >
                     <div
-                      className={`px-3 py-1 rounded-lg max-w-[80%] ${
+                      className={`px-3 py-2 rounded-lg max-w-[80%] ${
                         msg.author === username
                           ? "bg-blue-500 text-white"
                           : "bg-gray-200 dark:bg-gray-600 text-gray-900 dark:text-gray-100"
                       }`}
                     >
-                      <span className="block text-xs font-semibold">
+                      <span className="block text-xs font-bold">
                         {msg.author}
                       </span>
                       <span>{msg.message}</span>
-                      <span className="block text-[10px] text-right text-gray-300 dark:text-gray-400">
+                      <span className="block text-[10px] text-right text-gray-300">
                         {msg.time}
                       </span>
                     </div>
@@ -166,13 +219,16 @@ export default function Home() {
               )}
               <div ref={messagesEndRef} />
             </div>
+
+            {/* KOLOM INPUTNYA */}
             <form onSubmit={handleSendMessage} className="flex gap-2">
               <input
+                ref={messageInputRef}
                 type="text"
                 placeholder="Type your message..."
                 className="input input-bordered flex-1 p-2 rounded border"
                 value={message}
-                onChange={(e) => setMessage(e.target.value)}
+                onChange={(e) => handleChange(e)}
                 disabled={!joined}
                 required
               />
