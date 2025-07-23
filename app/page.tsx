@@ -22,7 +22,10 @@ export default function Home() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const newSocket = io(SOCKET_SERVER_URL);
+    const newSocket = io(SOCKET_SERVER_URL, {
+      transports: ["websocket"], // 👈 paksa pake websocket, bukan polling
+      secure: true, // 👈 pastikan koneksi HTTPS
+    });
     setSocket(newSocket);
     return () => {
       newSocket.disconnect();
