@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import io from "socket.io-client";
+import Developing from "./Developing";
 
 const SOCKET_SERVER_URL = process.env.NEXT_PUBLIC_SOCKET_SERVER_URL || "";
 
@@ -47,6 +48,8 @@ export default function Home() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  if (process.env.NEXT_PUBLIC_STATUS === "development") return <Developing />;
+
   const handleJoinRoom = (e: React.FormEvent) => {
     e.preventDefault();
     if (room && username && socket) {
@@ -76,6 +79,7 @@ export default function Home() {
         Loading...
       </div>
     );
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">
       <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
